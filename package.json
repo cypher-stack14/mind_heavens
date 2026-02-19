@@ -1,0 +1,19 @@
+{
+  "name": "access-deep-seven-beta",
+  "private": true,
+  "version": "0.0.1",
+  "scripts": {
+    "dev": "npm --prefix frontend run dev",
+    "dev:client": "npm --prefix frontend run dev",
+    "dev:server": "npm --prefix backend run dev",
+    "dev:all": "concurrently \"npm --prefix frontend run dev\" \"npm --prefix backend run dev\"",
+    "build": "npm --prefix frontend run build",
+    "install:all": "npm install; npm --prefix frontend install; npm --prefix backend install",
+    "install:client": "npm --prefix frontend install",
+    "install:server": "npm --prefix backend install",
+    "start:server": "npm --prefix backend run start"
+  },
+  "devDependencies": {
+    "concurrently": "^8.2.2"
+  }
+}
