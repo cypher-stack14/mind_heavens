@@ -127,7 +127,7 @@ export const getTherapists = async (req, res) => {
 
     let query = {};
     if (specialty) {
-      query.specializations = { $in: [specialty] };
+      query.specialties = { $in: [specialty] };
     }
     if (minRating) {
       query.rating = { $gte: parseFloat(minRating) };
@@ -136,7 +136,8 @@ export const getTherapists = async (req, res) => {
     const therapists = await Therapist.find(query).limit(20);
 
     res.json({
-      therapists,
+      success: true,
+      data: therapists,
     });
   } catch (error) {
     res.status(500).json({ error: error.message });
@@ -146,7 +147,7 @@ export const getTherapists = async (req, res) => {
 // Book a therapist appointment
 export const bookTherapist = async (req, res) => {
   try {
-    const { therapistId, date, time, notes } = req.body;
+    const { therapistId, date, time, sessionType = 'video', concerns } = req.body;
     const userId = req.userId;
 
     // Validate therapist exists
@@ -158,17 +159,25 @@ export const bookTherapist = async (req, res) => {
     const booking = new Booking({
       userId,
       therapistId,
-      date: new Date(date),
+      date,
       time,
-      notes,
+      sessionType,
+      concerns,
     });
 
     await booking.save();
 
+    // Update user's booking count
+    const user = await User.findById(userId);
+    if (user) {
+      user.bookingCount = (user.bookingCount || 0) + 1;
+      await user.save();
+    }
+
     res.status(201).json({
       success: true,
       message: 'Appointment booked successfully',
-      booking,
+      data: booking,
     });
   } catch (error) {
     res.status(500).json({ error: error.message });
@@ -195,46 +204,59 @@ export const getUserBookings = async (req, res) => {
 // Create assessment
 export const createAssessment = async (req, res) => {
   try {
-    const { type, responses } = req.body;
+    const { answers, score, date } = req.body;
     const userId = req.userId;
 
-    // Simple scoring logic (can be enhanced)
-    let score = 0;
+    // Calculate wellness score interpretation
     let riskLevel = 'low';
+    let recommendations = [];
 
-    if (type === 'phq9') {
-      Object.values(responses).forEach((value) => {
-        score += parseInt(value) || 0;
-      });
-      if (score >= 20)
-        riskLevel = 'high';
-      else if (score >= 10)
-        riskLevel = 'moderate';
+    if (score < 30) {
+      riskLevel = 'high';
+      recommendations = [
+        'Consider booking a therapist session',
+        'Practice stress-relief techniques daily',
+        'Maintain regular check-ins',
+      ];
+    } else if (score < 50) {
+      riskLevel = 'moderate';
+      recommendations = [
+        'Explore calming resources',
+        'Schedule regular check-ins',
+        'Try mindfulness exercises',
+      ];
+    } else {
+      riskLevel = 'low';
+      recommendations = [
+        'Keep up your wellness routine',
+        'Continue regular check-ins',
+        'Explore new courses',
+      ];
     }
 
     const assessment = new Assessment({
       userId,
-      type,
-      responses,
+      type: 'wellness',
+      responses: answers,
       score,
       riskLevel,
-      insights: `Your ${type} score is ${score}. Risk level: ${riskLevel}.`,
-      recommendations: ['Keep up regular check-ins', 'Practice mindfulness'],
+      insights: `Your wellness score is ${score}. Risk level: ${riskLevel}.`,
+      recommendations,
     });
 
     await assessment.save();
 
     // Update user stats
     const user = await User.findById(userId);
-    user.assessmentCount += 1;
+    user.assessmentCount = (user.assessmentCount || 0) + 1;
     user.currentRiskLevel = riskLevel;
-    user.lastAssessment = new Date();
+    user.lastAssessment = new Date(date || Date.now());
     await user.save();
 
     res.status(201).json({
       success: true,
       message: 'Assessment completed successfully',
-      assessment,
+      data: assessment,
     });
   } catch (error) {
     res.status(500).json({ error: error.message });
@@ -255,7 +277,41 @@ export const getAssessments = async (req, res) => {
     const assessments = await Assessment.find(query).sort({ createdAt: -1 });
 
     res.json({
-      assessments,
+      success: true,
+      data: assessments,
+    });
+  } catch (error) {
+    res.status(500).json({ error: error.message });
+  }
+};
+
+// Get user dashboard
+export const getDashboard = async (req, res) => {
+  try {
+    const userId = req.userId;
+
+    const user = await User.findById(userId);
+    if (!user) {
+      return res.status(404).json({ error: 'User not found' });
+    }
+
+    const checkInCount = await CheckIn.countDocuments({ userId });
+    const assessmentCount = await Assessment.countDocuments({ userId });
+    const bookingCount = await Booking.countDocuments({ userId });
+
+    res.json({
+      success: true,
+      data: {
+        wellnessScore: user.wellnessScore || 75,
+        checkInStreak: user.checkInStreak || 0,
+        assessmentCount: assessmentCount,
+        courseCount: user.courseCount || 0,
+        sleepSessions: user.sleepSessionCount || 0,
+        gamesPlayed: user.gamePlayedCount || 0,
+        currentRiskLevel: user.currentRiskLevel || 'low',
+        lastCheckIn: user.lastCheckIn,
+        lastAssessment: user.lastAssessment,
+      },
     });
   } catch (error) {
     res.status(500).json({ error: error.message });

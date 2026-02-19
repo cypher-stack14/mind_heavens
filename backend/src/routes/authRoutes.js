@@ -3,6 +3,8 @@ import {
   sendPhoneOTP,
   verifyPhoneOTP,
   googleAuth,
+  registerEmail,
+  loginEmail,
   getCurrentUser,
   logout,
 } from '../controllers/authController.js';
@@ -14,6 +16,8 @@ const router = express.Router();
 router.post('/send-otp', sendPhoneOTP);
 router.post('/verify-otp', verifyPhoneOTP);
 router.post('/google', googleAuth);
+router.post('/register', registerEmail);
+router.post('/login', loginEmail);
 router.get('/me', authenticateToken, getCurrentUser);
 router.post('/logout', authenticateToken, logout);
 

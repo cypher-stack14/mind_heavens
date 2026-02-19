@@ -10,6 +10,7 @@ import {
   getUserBookings,
   createAssessment,
   getAssessments,
+  getDashboard,
 } from '../controllers/featureController.js';
 import { authenticateToken } from '../middleware/auth.js';
 
@@ -17,6 +18,9 @@ const router = express.Router();
 
 // All routes require authentication
 router.use(authenticateToken);
+
+// Dashboard
+router.get('/dashboard', getDashboard);
 
 // Check-in routes
 router.post('/checkin', createCheckIn);
@@ -33,7 +37,7 @@ router.post('/resource/access', accessResource);
 
 // Therapist routes
 router.get('/therapists', getTherapists);
-router.post('/therapist/book', bookTherapist);
+router.post('/bookings', bookTherapist);
 router.get('/bookings', getUserBookings);
 
 // Assessment routes

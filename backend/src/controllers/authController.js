@@ -2,6 +2,7 @@ import User from '../models/User.js';
 import { OAuth2Client } from 'google-auth-library';
 import { generateToken, generatePhoneOTP } from '../utils/auth.js';
 import { sendOTPviaSMS } from '../utils/twilio.js';
+import bcrypt from 'bcryptjs';
 
 // In-memory OTP storage (use Redis in production)
 const otpStore = new Map();
@@ -191,4 +192,103 @@ export const logout = async (req, res) => {
     success: true,
     message: 'Logged out successfully',
   });
+};
+
+// Email registration
+export const registerEmail = async (req, res) => {
+  try {
+    const { email, password, name } = req.body;
+
+    if (!email || !password) {
+      return res.status(400).json({ error: 'Email and password are required' });
+    }
+
+    if (password.length < 6) {
+      return res.status(400).json({ error: 'Password must be at least 6 characters' });
+    }
+
+    // Check if user already exists
+    const existingUser = await User.findOne({ email });
+    if (existingUser) {
+      return res.status(400).json({ error: 'Email already registered' });
+    }
+
+    // Hash password
+    const hashedPassword = await bcrypt.hash(password, 10);
+
+    // Create new user
+    const user = new User({
+      email,
+      password: hashedPassword,
+      name: name || email.split('@')[0], // Use email prefix as default name
+      emailVerified: true, // Set to false if you want to implement email verification
+    });
+
+    await user.save();
+
+    const token = generateToken(user._id);
+
+    res.json({
+      success: true,
+      message: 'Registration successful',
+      token,
+      user: {
+        id: user._id,
+        name: user.name,
+        email: user.email,
+        wellnessScore: user.wellnessScore,
+      },
+    });
+  } catch (error) {
+    res.status(500).json({ error: error.message });
+  }
+};
+
+// Email login
+export const loginEmail = async (req, res) => {
+  try {
+    const { email, password } = req.body;
+
+    if (!email || !password) {
+      return res.status(400).json({ error: 'Email and password are required' });
+    }
+
+    // Find user with password field (select: false by default)
+    const user = await User.findOne({ email }).select('+password');
+
+    if (!user) {
+      return res.status(401).json({ error: 'Invalid email or password' });
+    }
+
+    if (!user.password) {
+      return res.status(401).json({ error: 'Please use Google or Phone login for this account' });
+    }
+
+    // Verify password
+    const isPasswordValid = await bcrypt.compare(password, user.password);
+
+    if (!isPasswordValid) {
+      return res.status(401).json({ error: 'Invalid email or password' });
+    }
+
+    // Update last check-in
+    user.lastCheckIn = new Date();
+    await user.save();
+
+    const token = generateToken(user._id);
+
+    res.json({
+      success: true,
+      message: 'Login successful',
+      token,
+      user: {
+        id: user._id,
+        name: user.name,
+        email: user.email,
+        wellnessScore: user.wellnessScore,
+      },
+    });
+  } catch (error) {
+    res.status(500).json({ error: error.message });
+  }
 };

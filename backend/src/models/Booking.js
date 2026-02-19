@@ -11,10 +11,11 @@ const bookingSchema = new mongoose.Schema({
     ref: 'Therapist',
     required: true,
   },
-  date: Date,
+  date: String,
   time: String,
-  status: { type: String, enum: ['pending', 'confirmed', 'completed', 'cancelled'], default: 'pending' },
-  notes: String,
+  sessionType: { type: String, enum: ['video', 'phone', 'in-person'], default: 'video' },
+  concerns: String,
+  status: { type: String, enum: ['pending', 'confirmed', 'completed', 'cancelled'], default: 'confirmed' },
   
   createdAt: { type: Date, default: Date.now },
 });

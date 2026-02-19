@@ -151,13 +151,24 @@ const courses: Course[] = [
 export default function Courses() {
   const [searchTerm, setSearchTerm] = useState("");
   const [activeFilter, setActiveFilter] = useState("all");
+  const [savedCourses, setSavedCourses] = useState<number[]>([]);
+  const [showSavedOnly, setShowSavedOnly] = useState(false);
 
   const filteredCourses = courses.filter(course => {
     const matchesSearch = course.title.toLowerCase().includes(searchTerm.toLowerCase()) ||
                          course.description.toLowerCase().includes(searchTerm.toLowerCase());
     const matchesFilter = activeFilter === "all" || course.category.includes(activeFilter);
-    return matchesSearch && matchesFilter;
+    const matchesSaved = !showSavedOnly || savedCourses.includes(course.id);
+    return matchesSearch && matchesFilter && matchesSaved;
   });
+
+  const toggleSaveCourse = (courseId: number) => {
+    setSavedCourses(prev =>
+      prev.includes(courseId)
+        ? prev.filter(id => id !== courseId)
+        : [...prev, courseId]
+    );
+  };
 
   const getLevelColor = (level: string) => {
     switch (level) {
@@ -274,11 +285,36 @@ export default function Courses() {
         {/* Courses Grid */}
         <div className="grid md:grid-cols-2 lg:grid-cols-3 gap-6">
           {filteredCourses.map((course) => (
-            <Link
+            <div
               key={course.id}
-              to={`/courses/${course.id}`}
-              className="bg-white rounded-2xl shadow-md hover:shadow-xl transition-all duration-300 overflow-hidden group cursor-pointer block"
+              className="bg-white rounded-2xl shadow-md hover:shadow-xl transition-all duration-300 overflow-hidden group relative"
             >
+              {/* Save to Favorites Button */}
+              <button
+                onClick={(e) => {
+                  e.preventDefault();
+                  toggleSaveCourse(course.id);
+                }}
+                className={`absolute top-6 right-6 z-10 w-10 h-10 rounded-full flex items-center justify-center transition-all hover:scale-110 shadow-md ${
+                  savedCourses.includes(course.id)
+                    ? "bg-red-500"
+                    : "bg-white/90 backdrop-blur-sm hover:bg-white"
+                }`}
+                title={savedCourses.includes(course.id) ? "Remove from favorites" : "Save to favorites"}
+              >
+                <Heart
+                  className={`w-5 h-5 ${
+                    savedCourses.includes(course.id)
+                      ? "fill-white text-white"
+                      : "text-gray-700"
+                  }`}
+                />
+              </button>
+
+              <Link
+                to={`/courses/${course.id}`}
+                className="block cursor-pointer"
+              >
               {/* Course Image */}
               <div className="relative h-48 overflow-hidden">
                 <img
@@ -290,7 +326,7 @@ export default function Courses() {
                   <Clock className="w-4 h-4" />
                   <span className="text-sm font-medium">{course.duration}</span>
                 </div>
-                <div className={`absolute top-4 right-4 px-3 py-1 rounded-full text-sm font-medium ${getLevelColor(course.level)}`}>
+                <div className={`absolute bottom-4 left-4 px-3 py-1 rounded-full text-sm font-medium ${getLevelColor(course.level)}`}>
                   {course.level}
                 </div>
               </div>
@@ -326,7 +362,8 @@ export default function Courses() {
                   </div>
                 </div>
               </div>
-            </Link>
+              </Link>
+            </div>
           ))}
         </div>
 
@@ -342,9 +379,25 @@ export default function Courses() {
         )}
 
         {/* Floating Action Button */}
-        <div className="fixed bottom-8 right-8">
-          <button className="w-14 h-14 bg-gradient-to-r from-green-500 to-emerald-500 text-white rounded-full shadow-lg hover:shadow-xl transition-all duration-300 hover:scale-110 flex items-center justify-center">
-            <Heart className="w-6 h-6" />
+        <div className="fixed bottom-8 right-8 flex flex-col gap-3">
+          {/* Saved Count Badge */}
+          {savedCourses.length > 0 && (
+            <div className="bg-white rounded-full px-4 py-2 shadow-lg text-center">
+              <p className="text-sm font-semibold text-gray-900">{savedCourses.length} Saved</p>
+            </div>
+          )}
+          
+          {/* Toggle Saved Filter */}
+          <button
+            onClick={() => setShowSavedOnly(!showSavedOnly)}
+            className={`w-14 h-14 rounded-full shadow-lg hover:shadow-xl transition-all duration-300 hover:scale-110 flex items-center justify-center ${
+              showSavedOnly
+                ? "bg-gradient-to-r from-red-500 to-pink-500"
+                : "bg-gradient-to-r from-green-500 to-emerald-500"
+            }`}
+            title={showSavedOnly ? "Show all courses" : "Show saved courses only"}
+          >
+            <Heart className={`w-6 h-6 text-white ${showSavedOnly ? "fill-white" : ""}`} />
           </button>
         </div>
       </div>

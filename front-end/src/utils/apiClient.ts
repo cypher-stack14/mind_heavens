@@ -203,6 +203,40 @@ class ApiClient {
   }
 
   /**
+   * Register with email and password
+   */
+  async registerEmail(email: string, password: string, name?: string): Promise<ApiResponse<any>> {
+    const response = await this.post<any>('/auth/register', { email, password, name });
+    
+    // Store token and user if registration successful
+    if (response.token) {
+      this.setToken(response.token);
+      if (response.user) {
+        this.setUser(response.user);
+      }
+    }
+    
+    return response;
+  }
+
+  /**
+   * Login with email and password
+   */
+  async loginEmail(email: string, password: string): Promise<ApiResponse<any>> {
+    const response = await this.post<any>('/auth/login', { email, password });
+    
+    // Store token and user if login successful
+    if (response.token) {
+      this.setToken(response.token);
+      if (response.user) {
+        this.setUser(response.user);
+      }
+    }
+    
+    return response;
+  }
+
+  /**
    * Logout
    */
   logout(): void {

@@ -11,6 +11,11 @@ const userSchema = new mongoose.Schema({
     unique: true,
     sparse: true,
   },
+  password: {
+    type: String,
+    // Password is optional since we support multiple auth methods
+    select: false, // Don't return password in queries by default
+  },
   googleId: {
     type: String,
     unique: true,
@@ -21,6 +26,7 @@ const userSchema = new mongoose.Schema({
   
   // Authentication
   phoneVerified: { type: Boolean, default: false },
+  emailVerified: { type: Boolean, default: false },
   verificationCode: String,
   verificationCodeExpiry: Date,
   
@@ -34,6 +40,7 @@ const userSchema = new mongoose.Schema({
   courseCount: { type: Number, default: 0 },
   sleepSessionCount: { type: Number, default: 0 },
   gamePlayedCount: { type: Number, default: 0 },
+  bookingCount: { type: Number, default: 0 },
   
   // Last Activity
   lastCheckIn: Date,
