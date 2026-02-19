@@ -3,8 +3,9 @@ import { ServiceCard } from "../components/ServiceCard";
 import { TestimonialCard } from "../components/TestimonialCard";
 import { StepCard } from "../components/StepCard";
 import { QuickCheckIn } from "../components/QuickCheckIn";
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { useNavigate } from "react-router";
+import { Loader } from "lucide-react";
 import {
   Heart,
   Brain,
@@ -24,11 +25,73 @@ import {
   Linkedin,
 } from "lucide-react";
 import { ImageWithFallback } from "../components/figma/ImageWithFallback";
+import { apiClient } from "../../utils/apiClient";
+
+interface DashboardData {
+  wellnessScore: number;
+  checkInStreak: number;
+  assessmentCount: number;
+  courseCount: number;
+  sleepSessions: number;
+  gamesPlayed: number;
+}
 
 export default function Home() {
   const [isCheckInOpen, setIsCheckInOpen] = useState(false);
   const [showQuickCheckin, setShowQuickCheckin] = useState(false);
+  const [loading, setLoading] = useState(true);
+  const [dashboardData, setDashboardData] = useState<DashboardData>({
+    wellnessScore: 0,
+    checkInStreak: 0,
+    assessmentCount: 0,
+    courseCount: 0,
+    sleepSessions: 0,
+    gamesPlayed: 0,
+  });
+  const [error, setError] = useState("");
   const navigate = useNavigate();
+
+  // Fetch dashboard data on mount
+  useEffect(() => {
+    const fetchDashboard = async () => {
+      try {
+        setLoading(true);
+        const user = apiClient.getUser();
+        
+        // Only fetch if user is logged in
+        if (user) {
+          const response = await apiClient.getDashboard();
+          if (response.data) {
+            setDashboardData({
+              wellnessScore: response.data.wellnessScore || 0,
+              checkInStreak: response.data.checkInStreak || 0,
+              assessmentCount: response.data.assessmentCount || 0,
+              courseCount: response.data.courseCount || 0,
+              sleepSessions: response.data.sleepSessions || 0,
+              gamesPlayed: response.data.gamesPlayed || 0,
+            });
+          }
+        } else {
+          // Show default data for non-logged-in users
+          setDashboardData({
+            wellnessScore: 0,
+            checkInStreak: 0,
+            assessmentCount: 0,
+            courseCount: 0,
+            sleepSessions: 0,
+            gamesPlayed: 0,
+          });
+        }
+      } catch (err: any) {
+        console.error("Failed to fetch dashboard:", err);
+        setError("Failed to load dashboard data");
+      } finally {
+        setLoading(false);
+      }
+    };
+
+    fetchDashboard();
+  }, []);
 
   return (
     <div className="min-h-screen bg-white">
@@ -87,69 +150,92 @@ export default function Home() {
             </p>
           </div>
 
+          {/* Loading State */}
+          {loading && (
+            <div className="flex items-center justify-center py-12">
+              <Loader className="w-8 h-8 text-purple-600 animate-spin" />
+              <span className="ml-3 text-gray-600">Loading your dashboard...</span>
+            </div>
+          )}
+
+          {/* Error State */}
+          {error && (
+            <div className="mb-6 p-4 bg-red-50 border border-red-200 rounded-lg">
+              <p className="text-red-700">{error}</p>
+            </div>
+          )}
+
           {/* Stats Cards Row */}
-          <div className="grid md:grid-cols-2 lg:grid-cols-4 gap-6 mb-8">
-            {/* Wellness Score Card */}
-            <div className="bg-gradient-to-br from-blue-50 to-blue-100 rounded-2xl p-6 border border-blue-200">
-              <div className="flex items-start justify-between mb-4">
-                <div>
-                  <p className="text-sm text-blue-700 font-medium mb-1">Wellness Score</p>
-                  <div className="flex items-baseline gap-1">
-                    <span className="text-4xl font-bold text-gray-900">70</span>
-                    <span className="text-gray-500">/100</span>
+          {!loading && (
+            <div className="grid md:grid-cols-2 lg:grid-cols-4 gap-6 mb-8">
+              {/* Wellness Score Card */}
+              <div className="bg-gradient-to-br from-blue-50 to-blue-100 rounded-2xl p-6 border border-blue-200">
+                <div className="flex items-start justify-between mb-4">
+                  <div>
+                    <p className="text-sm text-blue-700 font-medium mb-1">Wellness Score</p>
+                    <div className="flex items-baseline gap-1">
+                      <span className="text-4xl font-bold text-gray-900">{dashboardData.wellnessScore}</span>
+                      <span className="text-gray-500">/100</span>
+                    </div>
+                  </div>
+                  <div className="w-10 h-10 bg-blue-500 rounded-full flex items-center justify-center">
+                    <Heart className="w-5 h-5 text-white" />
                   </div>
                 </div>
-                <div className="w-10 h-10 bg-blue-500 rounded-full flex items-center justify-center">
-                  <Heart className="w-5 h-5 text-white" />
+                <div className="w-full bg-blue-200 rounded-full h-2">
+                  <div className="bg-green-500 h-2 rounded-full" style={{ width: `${dashboardData.wellnessScore}%` }}></div>
                 </div>
               </div>
-              <div className="w-full bg-blue-200 rounded-full h-2">
-                <div className="bg-green-500 h-2 rounded-full" style={{ width: '70%' }}></div>
-              </div>
-            </div>
 
-            {/* Check-in Streak Card */}
-            <div className="bg-gradient-to-br from-green-50 to-green-100 rounded-2xl p-6 border border-green-200">
-              <div className="flex items-start justify-between mb-4">
-                <div>
-                  <p className="text-sm text-green-700 font-medium mb-1">Check-in Streak</p>
-                  <div className="flex items-baseline gap-1">
-                    <span className="text-4xl font-bold text-gray-900">0</span>
-                    <span className="text-gray-500">days</span>
+              {/* Check-in Streak Card */}
+              <div className="bg-gradient-to-br from-green-50 to-green-100 rounded-2xl p-6 border border-green-200">
+                <div className="flex items-start justify-between mb-4">
+                  <div>
+                    <p className="text-sm text-green-700 font-medium mb-1">Check-in Streak</p>
+                    <div className="flex items-baseline gap-1">
+                      <span className="text-4xl font-bold text-gray-900">{dashboardData.checkInStreak}</span>
+                      <span className="text-gray-500">days</span>
+                    </div>
+                  </div>
+                  <div className="w-10 h-10 bg-green-500 rounded-full flex items-center justify-center">
+                    <CheckCircle className="w-5 h-5 text-white" />
                   </div>
                 </div>
-                <div className="w-10 h-10 bg-green-500 rounded-full flex items-center justify-center">
-                  <CheckCircle className="w-5 h-5 text-white" />
-                </div>
               </div>
-            </div>
 
-            {/* Current Risk Level Card */}
-            <div className="bg-white rounded-2xl p-6 border border-gray-200 shadow-sm">
-              <div className="flex items-start justify-between mb-4">
-                <div>
-                  <p className="text-sm text-gray-700 font-medium mb-1">Current Risk Level</p>
+              {/* Current Risk Level Card */}
+              <div className="bg-white rounded-2xl p-6 border border-gray-200 shadow-sm">
+                <div className="flex items-start justify-between mb-4">
+                  <div>
+                    <p className="text-sm text-gray-700 font-medium mb-1">Current Risk Level</p>
+                  </div>
+                  <div className="w-10 h-10 bg-purple-500 rounded-full flex items-center justify-center">
+                    <Shield className="w-5 h-5 text-white" />
+                  </div>
                 </div>
-                <div className="w-10 h-10 bg-purple-500 rounded-full flex items-center justify-center">
-                  <Shield className="w-5 h-5 text-white" />
-                </div>
+                <button 
+                  onClick={() => navigate('/assessment')}
+                  className="w-full bg-green-600 text-white px-4 py-2 rounded-lg font-medium hover:bg-green-700 transition-colors text-sm"
+                >
+                  Take Assessment
+                </button>
               </div>
-              <button className="w-full bg-green-600 text-white px-4 py-2 rounded-lg font-medium hover:bg-green-700 transition-colors text-sm">
-                Take Assessment
-              </button>
-            </div>
 
-            {/* Today's Check-in Card */}
-            <div className="bg-gradient-to-br from-purple-50 to-pink-50 rounded-2xl p-6 border border-purple-200">
-              <div className="mb-4">
-                <p className="text-sm text-purple-700 font-medium mb-1">Today's Check-in</p>
+              {/* Today's Check-in Card */}
+              <div className="bg-gradient-to-br from-purple-50 to-pink-50 rounded-2xl p-6 border border-purple-200">
+                <div className="mb-4">
+                  <p className="text-sm text-purple-700 font-medium mb-1">Today's Check-in</p>
+                </div>
+                <button 
+                  onClick={() => setIsCheckInOpen(true)}
+                  className="w-full bg-purple-600 text-white px-4 py-2 rounded-lg font-medium hover:bg-purple-700 transition-colors text-sm flex items-center justify-center gap-2"
+                >
+                  <Heart className="w-4 h-4" />
+                  Quick Check-in
+                </button>
               </div>
-              <button className="w-full bg-purple-600 text-white px-4 py-2 rounded-lg font-medium hover:bg-purple-700 transition-colors text-sm flex items-center justify-center gap-2">
-                <Heart className="w-4 h-4" />
-                Quick Check-in
-              </button>
             </div>
-          </div>
+          )}
 
           {/* Mental Health Trends & AI Insights Row */}
           <div className="grid lg:grid-cols-3 gap-6 mb-8">
@@ -210,7 +296,7 @@ export default function Home() {
                 {/* Assessments */}
                 <div className="flex flex-col items-center text-center p-4 bg-blue-50 rounded-xl">
                   <Brain className="w-8 h-8 text-blue-600 mb-3" />
-                  <div className="text-3xl font-bold text-gray-900 mb-1">0</div>
+                  <div className="text-3xl font-bold text-gray-900 mb-1">{dashboardData.assessmentCount}</div>
                   <div className="text-sm text-gray-600">Assessments</div>
                 </div>
                 {/* Courses */}
@@ -218,7 +304,7 @@ export default function Home() {
                   <svg className="w-8 h-8 text-green-600 mb-3" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                     <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M12 6.253v13m0-13C10.832 5.477 9.246 5 7.5 5S4.168 5.477 3 6.253v13C4.168 18.477 5.754 18 7.5 18s3.332.477 4.5 1.253m0-13C13.168 5.477 14.754 5 16.5 5c1.747 0 3.332.477 4.5 1.253v13C19.832 18.477 18.247 18 16.5 18c-1.746 0-3.332.477-4.5 1.253" />
                   </svg>
-                  <div className="text-3xl font-bold text-gray-900 mb-1">0</div>
+                  <div className="text-3xl font-bold text-gray-900 mb-1">{dashboardData.courseCount}</div>
                   <div className="text-sm text-gray-600">Courses</div>
                 </div>
                 {/* Sleep Sessions */}
@@ -226,7 +312,7 @@ export default function Home() {
                   <svg className="w-8 h-8 text-purple-600 mb-3" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                     <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M20.354 15.354A9 9 0 018.646 3.646 9.003 9.003 0 0012 21a9.003 9.003 0 008.354-5.646z" />
                   </svg>
-                  <div className="text-3xl font-bold text-gray-900 mb-1">0</div>
+                  <div className="text-3xl font-bold text-gray-900 mb-1">{dashboardData.sleepSessions}</div>
                   <div className="text-sm text-gray-600">Sleep Sessions</div>
                 </div>
                 {/* Games Played */}
@@ -234,7 +320,7 @@ export default function Home() {
                   <svg className="w-8 h-8 text-orange-600 mb-3" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                     <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M11 4a2 2 0 114 0v1a1 1 0 001 1h3a1 1 0 011 1v3a1 1 0 01-1 1h-1a2 2 0 100 4h1a1 1 0 011 1v3a1 1 0 01-1 1h-3a1 1 0 01-1-1v-1a2 2 0 10-4 0v1a1 1 0 01-1 1H7a1 1 0 01-1-1v-3a1 1 0 00-1-1H4a2 2 0 110-4h1a1 1 0 001-1V7a1 1 0 011-1h3a1 1 0 001-1V4z" />
                   </svg>
-                  <div className="text-3xl font-bold text-gray-900 mb-1">0</div>
+                  <div className="text-3xl font-bold text-gray-900 mb-1">{dashboardData.gamesPlayed}</div>
                   <div className="text-sm text-gray-600">Games Played</div>
                 </div>
               </div>
@@ -247,7 +333,10 @@ export default function Home() {
                 <h3 className="text-xl font-bold text-gray-900">Quick Actions</h3>
               </div>
               <div className="space-y-3">
-                <button className="w-full bg-blue-600 text-white px-4 py-3 rounded-lg font-medium hover:bg-blue-700 transition-colors flex items-center justify-center gap-2">
+                <button 
+                  onClick={() => navigate('/assessment')}
+                  className="w-full bg-blue-600 text-white px-4 py-3 rounded-lg font-medium hover:bg-blue-700 transition-colors flex items-center justify-center gap-2"
+                >
                   <Brain className="w-5 h-5" />
                   Mental Health Assessment
                 </button>

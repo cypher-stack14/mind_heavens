@@ -1,11 +1,12 @@
 import User from '../models/User.js';
 import { OAuth2Client } from 'google-auth-library';
 import { generateToken, generatePhoneOTP } from '../utils/auth.js';
+import { sendOTPviaSMS } from '../utils/twilio.js';
 
 // In-memory OTP storage (use Redis in production)
 const otpStore = new Map();
 
-// Send OTP to phone number (mock implementation)
+// Send OTP to phone number
 export const sendPhoneOTP = async (req, res) => {
   try {
     const { phoneNumber } = req.body;
@@ -19,8 +20,12 @@ export const sendPhoneOTP = async (req, res) => {
 
     otpStore.set(phoneNumber, { otp, expiryTime });
 
-    // In production, send via Twilio
-    console.log(`📱 OTP for ${phoneNumber}: ${otp} (expires in 10 minutes)`);
+    // Try to send via Twilio (if enabled)
+    const smsResult = await sendOTPviaSMS(phoneNumber, otp);
+
+    if (!smsResult.success) {
+      console.warn('SMS sending failed, but OTP stored locally:', smsResult.error);
+    }
 
     res.json({
       success: true,
